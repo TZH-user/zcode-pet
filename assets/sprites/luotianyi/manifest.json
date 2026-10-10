@@ -12,8 +12,8 @@
     },
     "working": {
       "dir": "frames-working",
-      "fps": 16,
-      "note": "Animate2 姿态驱动生成，17帧原地慢跑循环"
+      "fps": 24,
+      "note": "MiniMax-H3 fl2va 首尾帧生成（首=末帧构造保证循环）"
     },
     "waiting": {
       "frames": [

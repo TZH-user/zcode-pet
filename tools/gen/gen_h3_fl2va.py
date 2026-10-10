@@ -23,7 +23,7 @@ BASE = "http://192.168.20.20:8000"
 HOST_SHARED = "/home/sqls/models/minimax-h3/_comfy_input/bridge"
 CONTAINER_SHARED = "/models/minimax-h3/_comfy_input/bridge"
 FPS = 24
-STEPS = 20
+STEPS = 30
 DURATION_S = 4.0          # 最短 4.0 → 107 帧
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -51,13 +51,14 @@ def main():
     ]
     data = {
         "task": "fl2va",
-        "prompt": "Q版二次元少女全身原地慢跑循环动画，蓝白色汉服裙装，银白色长发双马尾配蓝色花饰，"
-                  "正对镜头原地跑步，双臂自然前后摆动，双腿交替抬起，裙摆和长发随跑动自然飘动，"
-                  "纯白色背景，赛璐璐动画风格，线条干净，动作平滑连贯，首尾姿态完全一致，固定镜头",
+        "prompt": "Q版二次元少女全身原地小幅度轻快跑步循环动画，蓝白色汉服裙装，银白色长发双马尾配蓝色花饰，"
+                  "正对镜头原地小碎步跑步，摆幅小而轻快，裙摆和长发只有轻微摆动，"
+                  "人物轮廓边缘干净锐利，无运动残影，无重影，无半透明拖尾，无模糊，"
+                  "纯白色背景，赛璐璐动画风格，线条清晰，首尾姿态完全一致，固定镜头",
         "target": json.dumps({"short_edge": 768, "aspect_ratio": "1:1",
                               "duration_seconds": round(frames / FPS, 6)}),
         "num_inference_steps": str(STEPS),
-        "seed": "20261011",
+        "seed": "77071",
         "conditions": json.dumps(conditions),
     }
     body, ctype = multipart(data)

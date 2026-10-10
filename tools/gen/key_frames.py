@@ -28,6 +28,10 @@ def load_frames(src: Path, tmp: Path):
     return sorted(list(src.glob("*.png")) + list(src.glob("*.jpg")))
 
 
+def ndi_sum(labels, n):
+    return np.bincount(labels.ravel())[1:] if n else np.array([1])
+
+
 def matte_frame(rgb: np.ndarray, tol: float, sat_max: float) -> np.ndarray:
     """返回 [H,W] float32 alpha (0..1)。边界连通白底清除 + 边缘羽化。"""
     bg = np.array([252.5, 252.5, 252.5])
@@ -53,6 +57,10 @@ def main():
     ap.add_argument("--tol", type=float, default=30.0)
     ap.add_argument("--sat", type=float, default=30.0)
     ap.add_argument("--frames", type=int, default=0, help="只取前 N 帧（0=全部）")
+    ap.add_argument("--smooth", type=float, default=0.0,
+                    help="alpha 时序平滑系数 0~1（大动作设 0 防运动拖尾）")
+    ap.add_argument("--killwhite", action="store_true", default=True,
+                    help="压制近白半透明残影（白底视频模型的运动白雾）")
     args = ap.parse_args()
 
     src, out = Path(args.src), Path(args.out)
@@ -70,29 +78,42 @@ def main():
         alphas.append(matte_frame(rgb, args.tol, args.sat))
     print(f"{len(frames)} 帧键控完成")
 
-    # 时序平滑（首尾帧用自身补边）
+    # 时序平滑（首尾帧用自身补边）。注意：动作大时相邻帧位移大，
+    # 加权平均会产生半透明运动拖尾——键控稳定的纯色底应关闭（--smooth 0）。
     A = np.stack(alphas)
-    S = np.empty_like(A)
-    S[0] = 0.75 * A[0] + 0.25 * A[1]
-    S[-1] = 0.75 * A[-1] + 0.25 * A[-2]
-    for t in range(1, len(A) - 1):
-        S[t] = 0.25 * A[t - 1] + 0.5 * A[t] + 0.25 * A[t + 1]
+    S = A.copy()
+    if args.smooth > 0:
+        w = args.smooth
+        S[0] = (1 - w) * A[0] + w * A[1]
+        S[-1] = (1 - w) * A[-1] + w * A[-2]
+        for t in range(1, len(A) - 1):
+            S[t] = (1 - w) * A[t] + (w / 2) * (A[t - 1] + A[t + 1])
     S[S > 0.92] = 1.0            # 内部实心还原，防平滑侵蚀
     S[S < 0.04] = 0.0
 
-    # 只保留主体连通域周边的 alpha：清除离体幽灵残影/角标白块
+    # 只保留主体连通域周边的 alpha：清除离体幽灵残影/角标白块。
+    # 残影可能与身体仅以 1~2px 细桥相连，先用开运算断桥再取主连通域。
     for t in range(len(S)):
         solid = S[t] > 0.5
         if not solid.any():
             continue
-        labels, n = ndimage.label(solid)
-        if n > 1:
-            sizes = ndimage.sum(solid, labels, range(1, n + 1))
+        opened = ndimage.binary_opening(solid, iterations=2)
+        labels, n = ndimage.label(opened)
+        if n > 0:
+            sizes = ndi_sum(labels, n)
             main = (labels == (np.argmax(sizes) + 1))
-        else:
-            main = solid
-        keep = ndimage.binary_dilation(main, iterations=8)
-        S[t] = np.where(keep, S[t], 0.0)
+            keep = ndimage.binary_dilation(main, iterations=8)
+            S[t] = np.where(keep, S[t], 0.0)
+
+    # 白雾压制：视频模型的白色运动残影（近白+半透明）在白底上不可见、
+    # 抠出后成灰色重影。白裙本体是不透明的，不会被误伤。
+    if args.killwhite:
+        for t, rgb in enumerate(rgbs):
+            mn = rgb.min(axis=2)
+            sat = rgb.max(axis=2) - rgb.min(axis=2)
+            near_white = (mn >= 226) & (sat <= 24)
+            veil = near_white & (S[t] > 0.03) & (S[t] < 0.8)
+            S[t] = np.where(veil, S[t] * 0.15, S[t])
 
     # 全帧并集 bbox（统一裁剪，位置稳定）
     ys, xs = np.where(S.max(axis=0) > 0.08)

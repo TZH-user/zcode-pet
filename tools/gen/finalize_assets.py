@@ -34,12 +34,15 @@ def main():
     for f in sorted((GEN / "run_frames_key").glob("run_*.png")):
         resize_save(f, fdir / f.name)
 
-    # 姿态图
-    resize_save(GEN / "lt_celebrate_alpha.png", SPR / "celebrate.png")
-    (SPR / "error.png").unlink(missing_ok=True)      # 旧气泡版退役
-    (SPR / "sleeping.png").unlink(missing_ok=True)
-    resize_save(GEN / "lt_sad_alpha.png", SPR / "error.png")
-    resize_save(GEN / "lt_sleepy_alpha.png", SPR / "sleeping.png")
+    # 姿态图（中间产物已清理时跳过——正式 png 已在库中）
+    for src_name, dst_name in [("lt_celebrate_alpha.png", "celebrate.png"),
+                               ("lt_sad_alpha.png", "error.png"),
+                               ("lt_sleepy_alpha.png", "sleeping.png")]:
+        s = GEN / src_name
+        if s.exists():
+            resize_save(s, SPR / dst_name)
+        else:
+            print(f"跳过 {dst_name}（中间产物已清理，使用库内现图）")
 
     manifest = {
         "version": 2,
