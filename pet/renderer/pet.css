@@ -1,0 +1,35 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  -webkit-app-region: drag;      /* 整窗拖拽 */
+}
+#stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+#sprite {
+  -webkit-app-region: no-drag;   /* 立绘区域留给点击互动 */
+  cursor: pointer;
+}
+#label {
+  margin: 2px 0 10px;
+  padding: 3px 14px;
+  border-radius: 12px;
+  background: rgba(28, 30, 40, 0.72);
+  color: #e8eaf2;
+  font: 13px/1.6 "Microsoft YaHei", sans-serif;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#label.working  { color: #9fdcff; }
+#label.error    { color: #ff9d9d; }
+#label.notification { color: #ffd59d; }
+#label.sleeping { color: #9aa0ae; }
+#label.celebrate { color: #b8ff9d; }
