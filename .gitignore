@@ -1,0 +1,23 @@
+# 依赖与构建产物
+node_modules/
+dist-pkg/
+out/
+
+# 第三方源码克隆 / asar 解包产物（体积大，不入库）
+reference/
+
+# 运行期输出与日志
+pet-shots/
+*.log
+__pycache__/
+*.pyc
+
+# 大模型权重文件
+tools/models/
+
+# 系统杂项
+Thumbs.db
+.DS_Store
+
+# 本地环境
+.env
