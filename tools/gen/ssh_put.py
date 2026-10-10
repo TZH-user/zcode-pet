@@ -12,8 +12,8 @@ sys.path.insert(0, r"F:\computing center\.workbuddy")
 import ssh_exec  # noqa: E402
 
 
-def main():
-    local, remote = sys.argv[1], sys.argv[2]
+def put(local, remote):
+    """base64 分块上传 + 服务端 md5 校验。"""
     data = open(local, "rb").read()
     b64 = base64.b64encode(data).decode()
     chunk = 48000
@@ -28,7 +28,13 @@ def main():
     remote_md5 = out.split()[0]
     local_md5 = hashlib.md5(data).hexdigest()
     assert remote_md5 == local_md5, f"md5 不一致 {remote_md5} != {local_md5}"
-    print(f"uploaded+verified {remote} ({len(data)} bytes, {len(parts)} 块)")
+    return len(data)
+
+
+def main():
+    local, remote = sys.argv[1], sys.argv[2]
+    n = put(local, remote)
+    print(f"uploaded+verified {remote} ({n} bytes)")
 
 
 if __name__ == "__main__":

@@ -32,7 +32,27 @@ let tray = null;
 let quitting = false;
 let currentState = "idle";
 let celebrateTimer = null;
+let followZcode = true;   // 随 ZCode 启停：进程消失连续 2 次采样 → 退出
+let missCount = 0;
 const src = new StateSource();
+
+// 状态动画时长（celebrate 一次性播放按帧数/fps 精确计算）
+function stateDurationMs(state) {
+  const spec = manifest.states && manifest.states[state];
+  if (!spec) return 4000;
+  try {
+    let count = 0;
+    if (spec.dir) {
+      count = fs.readdirSync(path.join(SPR, spec.dir))
+        .filter((f) => /\.png$/i.test(f)).length;
+    } else {
+      count = (spec.frames || []).length;
+    }
+    return Math.max(1500, Math.round(count * 1000 / (spec.fps || 24)));
+  } catch (_) {
+    return 4000;
+  }
+}
 
 function bootstrap() {
   app.whenReady().then(() => {
@@ -93,9 +113,15 @@ function createTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "ZCode 桌宠 v" + APP_VERSION, enabled: false },
     { type: "separator" },
+    { label: "随 ZCode 启停（关闭时自动退出）", type: "checkbox",
+      checked: followZcode,
+      click: (item) => { followZcode = item.checked; missCount = 0; } },
     { label: "回到右下角", click: () => {
         const wa = screen.getPrimaryDisplay().workArea;
-        if (win && !win.isDestroyed()) win.setPosition(wa.x + wa.width - 400, wa.y + wa.height - 460);
+        if (win && !win.isDestroyed()) {
+          win.setPosition(wa.x + wa.width - 400, wa.y + wa.height - 460);
+          win.show();
+        }
       } },
     { type: "separator" },
     { label: "退出", click: () => { quitting = true; app.quit(); } },
@@ -111,11 +137,28 @@ async function pollLoop() {
     return; // 单次采样失败静默跳过，下轮再试
   }
   let state = m.state;
-  // 庆祝：会话从 working 干净落地（无未读无新错误）
-  if (currentState === "working" && state === "idle") {
+  // 随 ZCode 启停：进程消失连续 2 次（约 4s）→ 跟随退出；重新检出 → 显示
+  if (followZcode) {
+    if (!m.process) {
+      missCount++;
+      if (missCount >= 2) {
+        logLine("ZCode 已退出，桌宠跟随退出");
+        app.quit();
+        return;
+      }
+    } else {
+      missCount = 0;
+      if (win && !win.isDestroyed() && !win.isVisible()) {
+        win.show();
+        ensureOnScreen();
+      }
+    }
+  }
+  // 庆祝：会话从 working/walk 干净落地（无未读无新错误）
+  if ((currentState === "working" || currentState === "walk") && state === "idle") {
     state = "celebrate";
     if (celebrateTimer) clearTimeout(celebrateTimer);
-    celebrateTimer = setTimeout(() => pushState("idle"), 4000);
+    celebrateTimer = setTimeout(() => pushState("idle"), stateDurationMs("celebrate"));
   }
   pushState(state, m);
   if (tray) tray.setToolTip(`ZCode 桌宠 v${APP_VERSION} — ${STATE_LABEL[state]}`);
@@ -160,5 +203,5 @@ ipcMain.handle("pet:frames-load", (_e, state) => {
   for (const f of files) {
     try { frames.push(fs.readFileSync(f)); } catch (_) { }
   }
-  return { fps: spec.fps || 1, frames };
+  return { fps: spec.fps || 1, frames, once: !!spec.once };
 });

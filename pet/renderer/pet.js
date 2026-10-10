@@ -5,7 +5,7 @@ const cv = document.getElementById("sprite");
 const ctx = cv.getContext("2d");
 const label = document.getElementById("label");
 
-let cur = { state: null, bitmaps: [], fps: 1, startedAt: 0 };
+let cur = { state: null, bitmaps: [], fps: 1, once: false, startedAt: 0 };
 let pokeUntil = 0;
 
 function cleanup() {
@@ -24,7 +24,8 @@ async function setState(name) {
   }
   if (!bitmaps.length) return;
   cleanup();
-  cur = { state: name, bitmaps, fps: Math.max(0.1, res.fps || 1), startedAt: performance.now() };
+  cur = { state: name, bitmaps, fps: Math.max(0.1, res.fps || 1),
+          once: !!res.once, startedAt: performance.now() };
 }
 
 function draw() {
@@ -34,16 +35,38 @@ function draw() {
     let idx = cur.bitmaps.length > 1
       ? Math.floor((performance.now() - cur.startedAt) / 1000 * cur.fps) % cur.bitmaps.length
       : 0;
+    if (cur.once && (performance.now() - cur.startedAt) / 1000 * cur.fps >= cur.bitmaps.length) {
+      idx = cur.bitmaps.length - 1;   // 一次性动画播完定格末帧
+    }
     const bmp = cur.bitmaps[idx];
     const targetH = 300;
     const scale = targetH / bmp.height;
     let w = bmp.width * scale, h = targetH;
-    // 戳击压扁回弹
     if (performance.now() < pokeUntil) {
       const k = 0.9;
       w *= 1 / k; h *= k;
     }
-    ctx.drawImage(bmp, (W - w) / 2, H - h - 4, w, h);
+    const x = (W - w) / 2, y = H - h - 6;
+    // 地面：椭圆软阴影（所有状态）；踱步/跑步加滚动地面短线与速度线
+    if (cur.state === "walk" || cur.state === "working") {
+      const t = performance.now() / 1000;
+      ctx.strokeStyle = "rgba(120,130,150,0.35)";
+      ctx.lineWidth = 2;
+      const dir = cur.state === "working" ? -1 : 1;   // 跑步向右，地纹向左滚
+      for (let i = 0; i < 3; i++) {
+        const gx = (W / 2 + dir * (((t * 60) + i * 46) % 150) - 75);
+        const gy = H - 14 + (i % 2) * 4;
+        ctx.beginPath();
+        ctx.moveTo(gx - 12, gy);
+        ctx.lineTo(gx + 12, gy);
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = "rgba(30,32,44,0.20)";
+    ctx.beginPath();
+    ctx.ellipse(W / 2, H - 10, w * 0.26, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.drawImage(bmp, x, y, w, h);
   }
   requestAnimationFrame(draw);
 }

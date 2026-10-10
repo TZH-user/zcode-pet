@@ -29,6 +29,7 @@ html, body {
   white-space: nowrap;
 }
 #label.working  { color: #9fdcff; }
+#label.walk     { color: #b8e4c8; }
 #label.error    { color: #ff9d9d; }
 #label.notification { color: #ffd59d; }
 #label.sleeping { color: #9aa0ae; }

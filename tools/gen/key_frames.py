@@ -61,6 +61,8 @@ def main():
                     help="alpha 时序平滑系数 0~1（大动作设 0 防运动拖尾）")
     ap.add_argument("--killwhite", action="store_true", default=True,
                     help="压制近白半透明残影（白底视频模型的运动白雾）")
+    ap.add_argument("--seamblend", type=int, default=3,
+                    help="循环接缝混合：末 K 帧 RGB+alpha 向首帧线性融合（K=0 关闭）")
     args = ap.parse_args()
 
     src, out = Path(args.src), Path(args.out)
@@ -114,6 +116,17 @@ def main():
             near_white = (mn >= 226) & (sat <= 24)
             veil = near_white & (S[t] > 0.03) & (S[t] < 0.8)
             S[t] = np.where(veil, S[t] * 0.15, S[t])
+
+    # 循环接缝混合：末 K 帧 RGB+alpha 向首帧线性融合，播放回绕点差分恒为 0
+    if args.seamblend > 0 and len(rgbs) > args.seamblend + 1:
+        K = args.seamblend
+        a0 = A[0]
+        rgb0 = rgbs[0] / 255.0
+        for k in range(K):
+            w = (k + 1) / (K + 1)
+            t = len(rgbs) - K + k
+            S[t] = S[t] * (1 - w) + a0 * w
+            rgbs[t] = (rgbs[t] / 255.0 * (1 - w) + rgb0 * w) * 255.0
 
     # 全帧并集 bbox（统一裁剪，位置稳定）
     ys, xs = np.where(S.max(axis=0) > 0.08)
