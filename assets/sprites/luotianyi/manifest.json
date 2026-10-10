@@ -1,50 +1,42 @@
 {
-  "version": 2,
+  "version": 3,
   "character": "luotianyi",
-  "source": "素材/洛天依汉服Q版.png + 服务器 ComfyUI 生成（见 docs/03-asset-prep.md）",
+  "source": "素材/洛天依汉服Q版.png + 服务器 H3 fl2va（黑底，见 docs/04-animation-plan.md）",
   "states": {
-    "idle": {
-      "frames": [
-        "idle.png",
-        "idle-breathe.png"
-      ],
-      "fps": 0.8
-    },
     "working": {
       "dir": "frames-working",
       "fps": 24,
-      "note": "MiniMax-H3 fl2va 首尾帧生成（首=末帧构造保证循环）"
+      "note": "H3 fl2va 侧视奔跑（紧构图关键帧根治漂移），105帧@24fps"
+    },
+    "idle": {
+      "dir": "frames-idle",
+      "fps": 24
+    },
+    "walk": {
+      "dir": "frames-walk",
+      "fps": 24
     },
     "waiting": {
-      "frames": [
-        "waiting.png"
-      ],
-      "fps": 1
+      "dir": "frames-waiting",
+      "fps": 24,
+      "note": "hooks 注册后由 PermissionRequest 触发"
     },
     "error": {
-      "frames": [
-        "error.png"
-      ],
-      "fps": 1
+      "dir": "frames-error",
+      "fps": 24
     },
     "notification": {
-      "frames": [
-        "notification.png"
-      ],
-      "fps": 1
-    },
-    "celebrate": {
-      "frames": [
-        "celebrate.png"
-      ],
-      "fps": 1,
-      "note": "会话成功完成时的庆祝态"
+      "dir": "frames-notification",
+      "fps": 24
     },
     "sleeping": {
-      "frames": [
-        "sleeping.png"
-      ],
-      "fps": 1
+      "dir": "frames-sleeping",
+      "fps": 24
+    },
+    "celebrate": {
+      "dir": "frames-celebrate",
+      "fps": 24,
+      "once": true
     }
   },
   "defaults": {
@@ -53,12 +45,13 @@
     "fallbackState": "idle"
   },
   "stateHints": {
-    "idle": "无活跃会话或全部会话静默",
-    "working": "存在运行中会话（回合内）",
-    "waiting": "PermissionRequest 等待用户确认",
-    "error": "PostToolUseFailure / task_status=error",
+    "idle": "无活跃会话（趴枕打盹循环）",
+    "walk": "1 个会话工作中（侧视踱步循环）",
+    "working": "2+ 会话工作中（侧视奔跑循环）",
+    "waiting": "PermissionRequest 等待确认",
+    "error": "PostToolUseFailure / task_status=error（着急等待）",
     "notification": "tasks.unread_at 新增未读",
-    "celebrate": "会话 Stop 成功终态（播放一次回落 idle）",
-    "sleeping": "ZCode 客户端未运行"
+    "sleeping": "ZCode 客户端未运行（盖被深睡）",
+    "celebrate": "会话成功落地，单次播放后回 idle"
   }
 }

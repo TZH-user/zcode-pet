@@ -7,6 +7,8 @@
 """
 import json
 import sys
+
+import numpy as np
 import time
 import urllib.request
 import uuid
@@ -28,7 +30,7 @@ STEPS = 30
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 NOGHOST = ("人物轮廓边缘干净锐利，无运动残影，无重影，无半透明拖尾，"
-           "纯白色背景，赛璐璐动画风格，首尾姿态完全一致，固定镜头")
+           "纯黑色背景，赛璐璐动画风格，首尾姿态完全一致，固定镜头")
 
 JOBS = {
     "idle": ("Q版少女趴在淡蓝色圆枕上打盹的循环动画，身体随呼吸轻微起伏，长发发梢微微飘动，"
@@ -43,8 +45,8 @@ JOBS = {
               "轻微地动，" + NOGHOST, "kf_sleep.png", "kf_sleep.png"),
     "celebrate": ("Q版少女原地跳起欢呼：从屈膝蓄力向上跃起，双臂从身后向前上方挥举过头顶，裙摆"
                   "随跳跃扬起，落回地面双臂保持高举定格，表情大笑，人物轮廓边缘干净锐利，无运动"
-                  "残影，无重影，纯白色背景，赛璐璐动画风格，固定镜头",
-                  "kf_cele0.png", "celebrate.png"),
+                  "残影，无重影，纯黑色背景，赛璐璐动画风格，固定镜头",
+                  "kf_cele0.png", "kf_cele1.png"),
     "working": ("完整侧面视角，Q版少女面朝画面右侧原地奔跑，身体完全侧对镜头，头部自然朝向前进"
                 "方向目视前方，绝不转头看向镜头，双腿大幅交替奔跑，双臂前后摆动，裙摆和长发向后"
                 "飘动，" + NOGHOST, "kf_runside.png", "kf_runside.png"),
@@ -56,7 +58,11 @@ JOBS = {
 
 def pad_square(src: Path, dst: Path, side=768):
     im = Image.open(src).convert("RGBA")
-    bg = Image.new("RGB", im.size, (255, 255, 255))
+    arr = np.asarray(im).astype(float)
+    corners = np.concatenate([arr[:24, :24, :3].reshape(-1, 3), arr[:24, -24:, :3].reshape(-1, 3),
+                              arr[-24:, :24, :3].reshape(-1, 3), arr[-24:, -24:, :3].reshape(-1, 3)])
+    bgc = tuple(int(v) for v in np.median(corners, axis=0))   # 角落中位数=底色自适应
+    bg = Image.new("RGB", im.size, bgc)
     bg.paste(im, mask=im.split()[3])
     s = max(bg.size)
     sq = Image.new("RGB", (s, s), (255, 255, 255))

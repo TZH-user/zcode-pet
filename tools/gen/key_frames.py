@@ -32,12 +32,19 @@ def ndi_sum(labels, n):
     return np.bincount(labels.ravel())[1:] if n else np.array([1])
 
 
-def matte_frame(rgb: np.ndarray, tol: float, sat_max: float) -> np.ndarray:
-    """返回 [H,W] float32 alpha (0..1)。边界连通白底清除 + 边缘羽化。"""
-    bg = np.array([252.5, 252.5, 252.5])
-    d = np.sqrt(((rgb - bg) ** 2).sum(axis=2))
-    sat = rgb.max(axis=2) - rgb.min(axis=2)
-    bg_like = (d <= tol) & (sat <= sat_max)
+def matte_frame(rgb: np.ndarray, tol: float, sat_max: float, bg_mode: str = "white") -> np.ndarray:
+    """返回 [H,W] float32 alpha (0..1)。边界连通背景清除 + 边缘羽化。
+
+    white: 距纯白欧氏距离（低饱和限定）；black: 亮度 L=max(r,g,b) 亮度键。
+    """
+    if bg_mode == "black":
+        d = rgb.max(axis=2)
+        bg_like = (d <= tol) & (rgb.min(axis=2) <= tol)
+    else:
+        bg = np.array([252.5, 252.5, 252.5])
+        d = np.sqrt(((rgb - bg) ** 2).sum(axis=2))
+        sat = rgb.max(axis=2) - rgb.min(axis=2)
+        bg_like = (d <= tol) & (sat <= sat_max)
     labels, _ = ndimage.label(bg_like)
     border_ids = set(np.unique(labels[0, :])) | set(np.unique(labels[-1, :])) \
         | set(np.unique(labels[:, 0])) | set(np.unique(labels[:, -1]))
@@ -63,6 +70,18 @@ def main():
                     help="压制近白半透明残影（白底视频模型的运动白雾）")
     ap.add_argument("--seamblend", type=int, default=3,
                     help="循环接缝混合：末 K 帧 RGB+alpha 向首帧线性融合（K=0 关闭）")
+    ap.add_argument("--bg", choices=["white", "black"], default="white",
+                    help="背景键控模式（black=亮度键，配纯黑底素材）")
+    ap.add_argument("--crop-right", type=int, default=-1,
+                    help="显式右缘裁剪 px（覆盖自动检测）")
+    ap.add_argument("--crop-left", type=int, default=-1,
+                    help="显式左缘裁剪 px（覆盖自动检测）")
+    ap.add_argument("--crop-top", type=int, default=-1,
+                    help="显式上缘裁剪 px（覆盖自动检测）")
+    ap.add_argument("--crop-bottom", type=int, default=-1,
+                    help="显式下缘裁剪 px（覆盖自动检测）")
+    ap.add_argument("--trim-last", type=int, default=0,
+                    help="丢弃末尾 N 帧（H3 尾帧偶发竖条伪影；首尾同帧构造下无损循环）")
     args = ap.parse_args()
 
     src, out = Path(args.src), Path(args.out)
@@ -70,14 +89,58 @@ def main():
     frames = load_frames(src, Path(tempfile.mkdtemp()))
     if args.frames:
         frames = frames[:args.frames]
+    if args.trim_last and len(frames) > args.trim_last + 2:
+        frames = frames[:len(frames) - args.trim_last]
     assert frames, f"无输入帧: {src}"
+
+    # 自动裁边 v2：逐帧全高中列扫描，取各帧白带（黑底）/暗带（白底）最大宽度
+    step = 2
+    samp = [np.asarray(Image.open(f).convert("RGB"), np.float32) for f in
+            frames[::max(1, len(frames) // 12)][:12]]
+    h0, w0 = samp[0].shape[:2]
+    crop = {"l": 0, "r": 0, "t": 0, "b": 0}
+    if args.bg == "black":
+        mins = np.stack([a[:, ::step].min(axis=2) for a in samp])       # N×H×W/2
+        rows_mins = np.stack([a[::step, :].min(axis=2) for a in samp])  # N×H/2×W
+        for i in range(len(samp)):
+            cm = mins[i]      # H × (W/2)：axis0=行, axis1=列
+            cnt = 0
+            while cnt < cm.shape[1] and np.quantile(cm[:, cm.shape[1] - 1 - cnt], 0.97) > 150:
+                cnt += 1
+            crop["r"] = max(crop["r"], cnt * step + 4)
+            cnt = 0
+            while cnt < cm.shape[1] and np.quantile(cm[:, cnt], 0.97) > 150:
+                cnt += 1
+            crop["l"] = max(crop["l"], cnt * step + 4)
+            rm = rows_mins[i]  # (H/2) × W：axis0=行, axis1=列
+            cnt = 0
+            while cnt < rm.shape[0] and np.quantile(rm[rm.shape[0] - 1 - cnt, :], 0.97) > 150:
+                cnt += 1
+            crop["b"] = max(crop["b"], cnt * step + 4)
+            cnt = 0
+            while cnt < rm.shape[0] and np.quantile(rm[cnt, :], 0.97) > 150:
+                cnt += 1
+            crop["t"] = max(crop["t"], cnt * step + 4)
+    if args.crop_right >= 0:
+        crop["r"] = args.crop_right
+    if args.crop_left >= 0:
+        crop["l"] = args.crop_left
+    if args.crop_top >= 0:
+        crop["t"] = args.crop_top
+    if args.crop_bottom >= 0:
+        crop["b"] = args.crop_bottom
+    for k in ("r", "l", "b", "t"):
+        crop[k] = min(crop[k], 220)
+    if any(crop.values()):
+        print(f"自动裁边: {crop}")
 
     alphas, rgbs = [], []
     for f in frames:
         im = Image.open(f).convert("RGB")
         rgb = np.asarray(im, np.float32)
+        rgb = rgb[crop["t"]:h0 - crop["b"], crop["l"]:w0 - crop["r"]]
         rgbs.append(rgb)
-        alphas.append(matte_frame(rgb, args.tol, args.sat))
+        alphas.append(matte_frame(rgb, args.tol, args.sat, args.bg))
     print(f"{len(frames)} 帧键控完成")
 
     # 时序平滑（首尾帧用自身补边）。注意：动作大时相邻帧位移大，
@@ -111,10 +174,14 @@ def main():
     # 抠出后成灰色重影。白裙本体是不透明的，不会被误伤。
     if args.killwhite:
         for t, rgb in enumerate(rgbs):
-            mn = rgb.min(axis=2)
-            sat = rgb.max(axis=2) - rgb.min(axis=2)
-            near_white = (mn >= 226) & (sat <= 24)
-            veil = near_white & (S[t] > 0.03) & (S[t] < 0.8)
+            if args.bg == "black":
+                # 黑底残影=暗色半透明拖尾；角色暗部（轮廓/眼）L>120 不误伤
+                mx = rgb.max(axis=2)
+                veil = (mx <= 90) & (S[t] > 0.03) & (S[t] < 0.8)
+            else:
+                mn = rgb.min(axis=2)
+                sat = rgb.max(axis=2) - rgb.min(axis=2)
+                veil = (mn >= 226) & (sat <= 24) & (S[t] > 0.03) & (S[t] < 0.8)
             S[t] = np.where(veil, S[t] * 0.15, S[t])
 
     # 循环接缝混合：末 K 帧 RGB+alpha 向首帧线性融合，播放回绕点差分恒为 0
