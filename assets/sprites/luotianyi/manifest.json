@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "character": "luotianyi",
+  "source": "素材/洛天依汉服Q版.png",
+  "states": {
+    "idle": {
+      "frames": [
+        "idle.png",
+        "idle-breathe.png"
+      ],
+      "fps": 0.8
+    },
+    "working": {
+      "frames": [
+        "working.png"
+      ],
+      "fps": 1,
+      "note": "占位：正式版应替换为 AI 生成的多帧跑步/敲键盘动画"
+    },
+    "waiting": {
+      "frames": [
+        "waiting.png"
+      ],
+      "fps": 1
+    },
+    "error": {
+      "frames": [
+        "error.png"
+      ],
+      "fps": 1
+    },
+    "notification": {
+      "frames": [
+        "notification.png"
+      ],
+      "fps": 1
+    },
+    "sleeping": {
+      "frames": [
+        "sleeping.png"
+      ],
+      "fps": 1
+    }
+  },
+  "defaults": {
+    "scale": 0.5,
+    "offsetY": 0,
+    "fallbackState": "idle"
+  },
+  "stateHints": {
+    "idle": "无活跃会话或全部会话静默",
+    "working": "存在运行中会话（UserPromptSubmit 回合内）",
+    "waiting": "PermissionRequest 等待用户确认",
+    "error": "PostToolUseFailure 等失败信号（3 秒闪烁窗）",
+    "notification": "Notification / 未读会话",
+    "sleeping": "ZCode 客户端未运行"
+  }
+}
