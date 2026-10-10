@@ -39,10 +39,25 @@ manifest（`assets/sprites/luotianyi/manifest.json`）：`states → {frames[], 
 - 深底状态拼图：[qc-states-dark.png](img/qc-states-dark.png) —— 气泡完整、Zzz 清晰、呼吸帧自然（初版气泡按 512 宽画布定位被右缘裁切，已按 437 实际宽度修正）。
 - 经验（承接旧版项目教训）：透明素材验收一律用**深底合成目检**，不做屏幕截屏。
 
-## 3. 缺口与第二阶段计划
+## 3. 服务器生成管线（2026-10-11 补齐，接入用户 GPU 服务器）
+
+用户服务器（192.168.20.20，2×A6000，ComfyUI :8188）已用于补齐真实姿态素材：
+
+| 产物 | 路线 | 质量验收 |
+| --- | --- | --- |
+| celebrate / error / sleeping 真实姿态 | **EditPlus 单参考图编辑**（Qwen-Image-2.1-UC GGUF，35~60s/张），提示词=保持服装发型画风不变的姿态改写 | [qc-final-assets.png](img/qc-final-assets.png) 右三张 |
+| working 跑步帧 17 帧 @16fps | **Wan2.2 Animate2 姿态驱动**：旧项目 jog 视频（768² 白底 17 帧）→ SDPose 提骨架（chibi 可用）→ `WanAnimate2ToVideo` 640²/20步 换装生成 → 逐帧键控 | [qc-final-assets.png](img/qc-final-assets.png) 左五张 |
+
+工具链（`tools/gen/`，均入库）：`submit_editplus.py`（ComfyUI 提交客户端，代理免疫）→ `gen_poses.py` → `gen_run_video.py`（upload/skeleton/animate 三段，先骨架 QC 再采样）→ `key_frames.py`（逐帧洪泛键控 + alpha 时序平滑 0.25/0.5/0.25 + 主体连通域过滤 + **全帧统一 bbox 防位置跳动**）→ `finalize_assets.py`（整合 + manifest v2）。
+
+**实测教训**：
+- **RVM 在白衣银发 vs 白底上不可用**（首尾帧主体被吞、白裙黑洞）——旧项目"语义分割不受底色影响"的结论在低对比场景不成立；逐帧洪泛键控 + 时序平滑才是该素材类型的正解。
+- Animate2 输出帧数会多于输入骨架帧（17→21，尾部为外推残影帧），须 `--frames` 截断。
+- SaveVideo/UNETLoader 等节点在这版 ComfyUI 要求 `format`/`weight_dtype` 参数；提交失败只挂尾节点时，重提命中上游缓存秒级完成。
+
+## 4. 剩余缺口
 
 | 缺口 | 说明 | 计划 |
 | --- | --- | --- |
-| working 动画 | 单立绘无法诚实表达"跑步/敲键盘"，当前为 `</>` 气泡占位 | 复用已验证的即梦图生视频 → 抽帧 → RVM 时序抠图管线（前一版项目已跑通），或 AI 生图多姿态 |
-| 多姿态（拖拽/点击反应/庆祝） | 同上 | 第二阶段按 clawd-on-desk 状态清单（见支线一文档）补齐 |
-| 换装/多形象 | 当前仅汉服一套 | manifest 已按 character 维度预留 |
+| waiting / notification | 仍为气泡占位（`?` / 橙`!`），无真实姿态 | 同 EditPlus 管线补（低优先） |
+| 换装/多形象 | manifest 已按 character 维度预留 | 需求触发时扩展 |
