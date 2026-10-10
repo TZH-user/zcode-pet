@@ -26,8 +26,10 @@ def resize_save(src: Path, dst: Path):
 
 
 def main():
-    # 跑步帧序列：统一缩放 512 高
+    # 跑步帧序列：清空旧帧（防新旧混帧）后统一缩放 512 高
     fdir = SPR / "frames-working"
+    if fdir.exists():
+        shutil.rmtree(fdir)
     fdir.mkdir(exist_ok=True)
     for f in sorted((GEN / "run_frames_key").glob("run_*.png")):
         resize_save(f, fdir / f.name)
@@ -45,8 +47,8 @@ def main():
         "source": "素材/洛天依汉服Q版.png + 服务器 ComfyUI 生成（见 docs/03-asset-prep.md）",
         "states": {
             "idle":         {"frames": ["idle.png", "idle-breathe.png"], "fps": 0.8},
-            "working":      {"dir": "frames-working", "fps": 16,
-                             "note": "Animate2 姿态驱动生成，17帧原地慢跑循环"},
+            "working":      {"dir": "frames-working", "fps": 24,
+                             "note": "MiniMax-H3 fl2va 首尾帧生成（首=末帧构造保证循环）"},
             "waiting":      {"frames": ["waiting.png"], "fps": 1},
             "error":        {"frames": ["error.png"], "fps": 1},
             "notification": {"frames": ["notification.png"], "fps": 1},
