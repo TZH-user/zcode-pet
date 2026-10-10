@@ -21,3 +21,6 @@ Thumbs.db
 
 # 本地环境
 .env
+
+# 生成中间产物（正式素材已整合进 assets/sprites）
+assets/gen/
