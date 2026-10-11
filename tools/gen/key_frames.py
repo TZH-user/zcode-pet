@@ -38,8 +38,11 @@ def matte_frame(rgb: np.ndarray, tol: float, sat_max: float, bg_mode: str = "whi
     white: 距纯白欧氏距离（低饱和限定）；black: 亮度 L=max(r,g,b) 亮度键。
     """
     if bg_mode == "black":
+        # 全局亮度键（用户定稿）：暗于阈值的黑色一律透明——不管是否连通，
+        # 封闭黑洞一次清干净；角色深蓝线条 max 通道高（>=90）自动保留。
         d = rgb.max(axis=2)
-        bg_like = (d <= tol) & (rgb.min(axis=2) <= tol)
+        t0, t1 = tol, tol * 2.2
+        return np.clip((d - t0) / (t1 - t0), 0.0, 1.0)
     else:
         bg = np.array([252.5, 252.5, 252.5])
         d = np.sqrt(((rgb - bg) ** 2).sum(axis=2))
