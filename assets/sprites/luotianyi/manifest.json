@@ -6,7 +6,7 @@
     "working": {
       "dir": "frames-working",
       "fps": 24,
-      "note": "H3 fl2va 侧视奔跑（紧构图关键帧根治漂移），105帧@24fps"
+      "note": "H3 fl2va 正面跑（白底版，已验收）；侧视版构图漂移待重生成"
     },
     "idle": {
       "dir": "frames-idle",

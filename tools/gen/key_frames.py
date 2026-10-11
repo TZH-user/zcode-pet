@@ -156,6 +156,27 @@ def main():
     S[S > 0.92] = 1.0            # 内部实心还原，防平滑侵蚀
     S[S < 0.04] = 0.0
 
+    # 黑底：封闭近黑洞清除（发丝间/肢体间的背景区域，边界洪泛够不到）
+    if args.bg == "black":
+        for t in range(len(S)):
+            dark = (rgbs[t].max(axis=2) <= args.tol) & (S[t] > 0.9)
+            lab, n = ndimage.label(dark)
+            if n:
+                sizes = np.bincount(lab.ravel())
+                big_ids = np.nonzero(sizes > 400)[0]
+                big_ids = big_ids[big_ids != 0]   # bincount 0 号=非暗像素全体，必须排除
+                big = np.isin(lab, big_ids) if len(big_ids) else np.zeros_like(lab, bool)
+                if big.any():
+                    S[t] = np.where(big, 0.0, S[t])
+
+    # 黑底：反 premultiply——半透明像素携带黑底混合色，rgb/a 还原真色去黑边
+    if args.bg == "black":
+        for t in range(len(rgbs)):
+            m = (S[t] > 0.03) & (S[t] < 0.985)
+            if m.any():
+                safe = np.maximum(S[t], 0.05)
+                rgbs[t] = np.where(m[..., None], np.clip(rgbs[t] / safe[..., None], 0, 255), rgbs[t])
+
     # 只保留主体连通域周边的 alpha：清除离体幽灵残影/角标白块。
     # 残影可能与身体仅以 1~2px 细桥相连，先用开运算断桥再取主连通域。
     for t in range(len(S)):
@@ -189,11 +210,13 @@ def main():
         K = args.seamblend
         a0 = A[0]
         rgb0 = rgbs[0] / 255.0
+        guard = (a0 > 0.25)[..., None]   # 仅首帧不透明区做 RGB 混合，防透明区白影
         for k in range(K):
             w = (k + 1) / (K + 1)
             t = len(rgbs) - K + k
             S[t] = S[t] * (1 - w) + a0 * w
-            rgbs[t] = (rgbs[t] / 255.0 * (1 - w) + rgb0 * w) * 255.0
+            rgbs[t] = np.where(guard, (rgbs[t] / 255.0 * (1 - w) + rgb0 * w),
+                               rgbs[t] / 255.0) * 255.0
 
     # 全帧并集 bbox（统一裁剪，位置稳定）
     ys, xs = np.where(S.max(axis=0) > 0.08)
