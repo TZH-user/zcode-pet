@@ -57,6 +57,7 @@ function stateDurationMs(state) {
 function bootstrap() {
   app.whenReady().then(() => {
     createWindow();
+    ensureOnScreen();          // 位置记忆可能还原出屏外坐标，启动时先拉回屏内
     createTray();
     setInterval(pollLoop, 2000);
     setTimeout(pollLoop, 300);
