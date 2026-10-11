@@ -7,6 +7,7 @@ const label = document.getElementById("label");
 
 let cur = { state: null, bitmaps: [], fps: 1, once: false, startedAt: 0 };
 let pokeUntil = 0;
+let drag = null;
 
 function cleanup() {
   for (const b of cur.bitmaps) { try { b.close(); } catch (_) { } }
@@ -84,8 +85,27 @@ window.pet.onState((s) => {
   setState(s.state);
 });
 
-cv.addEventListener("mousedown", () => {
-  pokeUntil = performance.now() + 260;   // 压扁-回弹
+cv.addEventListener("mousedown", (e) => {
+  drag = { lx: e.clientX, ly: e.clientY, moved: false };   // 长按拖动：移动>4px 判定为拖而非戳
+});
+
+window.addEventListener("mousemove", (e) => {
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.lx, e.clientY - drag.ly) > 4) {
+    drag.moved = true;
+    document.body.style.cursor = "grabbing";
+  }
+  if (drag.moved) {
+    window.pet.moveBy(e.clientX - drag.lx, e.clientY - drag.ly);
+    drag.lx = e.clientX; drag.ly = e.clientY;
+  }
+});
+
+window.addEventListener("mouseup", () => {
+  if (drag && !drag.moved) pokeUntil = performance.now() + 260;   // 点击压扁-回弹
+  if (drag && drag.moved) window.pet.endDrag();   // 拖动结束：主进程统一做屏内钳制+写位置记忆
+  drag = null;
+  document.body.style.cursor = "";
 });
 
 requestAnimationFrame(draw);

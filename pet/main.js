@@ -34,6 +34,7 @@ let currentState = "idle";
 let celebrateTimer = null;
 let followZcode = true;   // 随 ZCode 启停：进程消失连续 2 次采样 → 退出
 let missCount = 0;
+let dragging = false;     // 长按拖动中：位置记忆延迟到拖动结束
 const src = new StateSource();
 
 // 状态动画时长（celebrate 一次性播放按帧数/fps 精确计算）
@@ -102,6 +103,7 @@ function createWindow() {
   win.webContents.on("did-fail-load", (_e, code, desc) => logLine(`did-fail-load ${code} ${desc}`));
   win.on("moved", () => {
     ensureOnScreen();
+    if (dragging) return;   // 拖动中不逐帧写盘，结束统一写
     try {
       fs.writeFileSync(path.join(app.getPath("userData"), "window-pos.json"),
         JSON.stringify(win.getPosition()));
@@ -223,6 +225,24 @@ function pushState(state, m) {
     });
   }
 }
+
+// 拖动窗口：只 setPosition 不动尺寸（混合 DPI 下 setSize 会把窗口顶出屏，之前踩过），
+// 增量是 renderer CSS 像素 = 窗口 DIP 坐标，Electron 自动映射各屏 DPI
+ipcMain.on("pet:move-by", (_e, dx, dy) => {
+  if (!win || win.isDestroyed()) return;
+  dragging = true;
+  const [x, y] = win.getPosition();
+  win.setPosition(x + Math.round(dx), y + Math.round(dy));
+});
+ipcMain.on("pet:end-drag", () => {
+  if (!dragging) return;
+  dragging = false;
+  ensureOnScreen();
+  try {
+    fs.writeFileSync(path.join(app.getPath("userData"), "window-pos.json"),
+      JSON.stringify(win.getPosition()));
+  } catch (_) { }
+});
 
 // 帧素材下发：renderer 不能 fetch file://，经 IPC 传 Buffer
 ipcMain.handle("pet:frames-load", (_e, state) => {
