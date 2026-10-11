@@ -14,8 +14,8 @@
     },
     "walk": {
       "dir": "frames-walk",
-      "fps": 24,
-      "note": "H3 fl2va 往返踱步（右走→转身→左走→循环），156帧@24fps"
+      "fps": 20,
+      "note": "H3 fl2va 往返踱步镜像翻倍：正放0..110+水平镜像0..110=222帧，fps20=11.1s/周期，换向间隔~5s"
     },
     "waiting": {
       "dir": "frames-waiting",
