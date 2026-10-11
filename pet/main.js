@@ -92,6 +92,7 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: false,   // 被遮挡/失焦也持续动画（贴纸性质，别让 rAF 被节流成静止）
     },
   });
   win.setAlwaysOnTop(true, "screen-saver");
@@ -157,6 +158,7 @@ async function pollLoop() {
     return; // 单次采样失败静默跳过，下轮再试
   }
   let state = m.state;
+  if (process.env.PET_FORCE_STATE) state = process.env.PET_FORCE_STATE;   // 诊断用
   // 随 ZCode 启停：进程消失连续 2 次（约 4s）→ 跟随退出；重新检出 → 显示
   if (followZcode) {
     if (!m.process) {

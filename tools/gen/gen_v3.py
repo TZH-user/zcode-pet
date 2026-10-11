@@ -51,6 +51,16 @@ JOBS = {
                    "红色感叹号轻轻跳动，表情着急但可爱，动作轻柔连贯循环，" + NOGHOST),
         "seed": "41002",
     },
+    "walk4": {
+        "kf": "kf_walkside.png",   # 自然走姿关键帧（v2 原版，动作自然；v3 极端跨步导致劈叉感）
+        "frames": 17 * 9 + 5,
+        "prompt": ("完整侧面视角，Q版少女原地往返踱步：先向画面右侧行走几步，步伐自然迈开，"
+                   "双腿交替协调流畅，重心平稳，身体随步伐轻微起伏，动作放松自然像散步，停下后"
+                   "原地转身面向画面左侧，再自然地向左行走几步回到起点位置，然后再次转身，行走"
+                   "动作连贯自然循环，身体侧对镜头，头部自然朝向行进方向，不看向镜头，裙摆随步伐"
+                   "轻柔摆动，" + NOGHOST),
+        "seed": "55021",
+    },
 }
 
 
@@ -77,7 +87,7 @@ def run_job(name, job):
     body, ctype = multipart(data)
     try:
         j = json.loads(opener.open(urllib.request.Request(
-            BASE + "/v1/videos", data=body, headers={"Content-Type": ctype}), timeout=60).read().decode())
+            BASE + "/v1/videos", data=body, headers={"Content-Type": ctype}), timeout=300).read().decode())
     except urllib.error.HTTPError as e:
         print(f"{tag} 被拒: {e.read().decode(errors='ignore')[:300]}", flush=True)
         return

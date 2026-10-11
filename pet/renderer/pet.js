@@ -6,6 +6,7 @@ const ctx = cv.getContext("2d");
 const label = document.getElementById("label");
 
 let cur = { state: null, bitmaps: [], fps: 1, once: false, startedAt: 0 };
+let prev = null;        // 上一状态解码缓存：来回切换免重解码（切换瞬间的静止即加载期）
 let pokeUntil = 0;
 let drag = null;
 
@@ -16,6 +17,14 @@ function cleanup() {
 
 async function setState(name) {
   if (cur.state === name) return;
+  if (prev && prev.state === name) {          // 命中缓存：直接换入
+    cleanup();
+    const old = cur;
+    cur = { state: prev.state, bitmaps: prev.bitmaps, fps: prev.fps,
+            once: prev.once, startedAt: performance.now() };
+    prev = { state: old.state, bitmaps: old.bitmaps, fps: old.fps, once: old.once };
+    return;
+  }
   const res = await window.pet.loadFrames(name);
   if (!res.frames.length) return;
   const bitmaps = [];
@@ -24,7 +33,8 @@ async function setState(name) {
     catch (_) { }
   }
   if (!bitmaps.length) return;
-  cleanup();
+  if (prev) for (const b of prev.bitmaps) { try { b.close(); } catch (_) { } }
+  prev = { state: cur.state, bitmaps: cur.bitmaps, fps: cur.fps, once: cur.once };
   cur = { state: name, bitmaps, fps: Math.max(0.1, res.fps || 1),
           once: !!res.once, startedAt: performance.now() };
 }
@@ -47,6 +57,7 @@ function draw() {
       idx = cur.bitmaps.length - 1;   // 一次性动画播完定格末帧
     }
     const bmp = cur.bitmaps[idx];
+    if (Math.random() < 0.02) console.warn("[diag]", cur.state, "frame", idx, "/", cur.bitmaps.length, "fps", cur.fps);
     // 等比缩放：目标高 300，且不超出画布宽度
     const scale = Math.min(300 / bmp.height, (W - 20) / bmp.width);
     let w = bmp.width * scale, h = bmp.height * scale;

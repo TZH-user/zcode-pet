@@ -16,7 +16,7 @@ GEN = ROOT / "assets" / "gen"
 SPR = ROOT / "assets" / "sprites" / "luotianyi"
 H = 384
 
-JOBS = {"walk": "walk3", "notif": "notif2", "error": "error2"}
+JOBS = {"walk": "walk4", "notif": "notif2", "error": "error2"}
 
 
 def key_video(fkey, out_key):
