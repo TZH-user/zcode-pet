@@ -70,11 +70,16 @@ function bootstrap() {
 
 function createWindow() {
   const wa = screen.getPrimaryDisplay().workArea;
+  let px = wa.x + wa.width - 400, py = wa.y + wa.height - 460;
+  try {   // 位置记忆：跨重启还原（双屏用户拖到副屏后不再跑回主屏）
+    const saved = JSON.parse(fs.readFileSync(path.join(app.getPath("userData"), "window-pos.json"), "utf8"));
+    if (Number.isFinite(saved.x) && Number.isFinite(saved.y)) { px = saved.x; py = saved.y; }
+  } catch (_) { }
   win = new BrowserWindow({
     width: 380,
     height: 430,
-    x: wa.x + wa.width - 400,
-    y: wa.y + wa.height - 460,
+    x: px,
+    y: py,
     transparent: true,
     frame: false,
     resizable: false,
@@ -94,16 +99,28 @@ function createWindow() {
   });
   win.webContents.on("render-process-gone", (_e, details) => logLine("render-gone: " + JSON.stringify(details)));
   win.webContents.on("did-fail-load", (_e, code, desc) => logLine(`did-fail-load ${code} ${desc}`));
-  win.on("moved", ensureOnScreen);
+  win.on("moved", () => {
+    ensureOnScreen();
+    try {
+      fs.writeFileSync(path.join(app.getPath("userData"), "window-pos.json"),
+        JSON.stringify(win.getPosition()));
+    } catch (_) { }
+  });
 }
 
 function ensureOnScreen() {
   if (!win || win.isDestroyed()) return;
-  const wa = screen.getPrimaryDisplay().workArea;
+  // 用窗口所在屏幕的 workArea（双屏不同分辨率下不能用主屏，混合 DPI 会把窗口顶出屏）
+  const disp = screen.getDisplayNearestPoint(win.getBounds());
+  const wa = disp.workArea;
   const [x, y] = win.getPosition();
-  const nx = Math.min(Math.max(x, wa.x - 40), wa.x + wa.width - 80);
-  const ny = Math.min(Math.max(y, wa.y - 10), wa.y + wa.height - 80);
-  if (nx !== x || ny !== y) win.setPosition(nx, ny);
+  const [w, h] = win.getSize();
+  const nx = Math.min(Math.max(x, wa.x - w + 60), wa.x + wa.width - 60);
+  const ny = Math.min(Math.max(y, wa.y - h + 60), wa.y + wa.height - 60);
+  if (nx !== x || ny !== y) {
+    logLine(`ensureOnScreen: (${x},${y}) -> (${nx},${ny})`);
+    win.setPosition(nx, ny);
+  }
 }
 
 function createTray() {
@@ -164,7 +181,8 @@ async function pollLoop() {
   if (tray) tray.setToolTip(`ZCode 桌宠 v${APP_VERSION} — ${STATE_LABEL[state]}`);
 }
 
-// 状态帧尺寸（PNG IHDR 直读），用于按构图自适应窗口
+// 状态帧尺寸（PNG IHDR 直读）——仅供调试观察；窗口尺寸恒定（混合 DPI 下动态
+// 缩放窗口会踩 Electron setPosition/setSize 坑把窗口顶出屏，宽构图由渲染端适配）
 const frameSizeCache = {};
 function stateFrameSize(state) {
   if (frameSizeCache[state]) return frameSizeCache[state];
@@ -187,30 +205,10 @@ function stateFrameSize(state) {
   return r;
 }
 
-// 窗口按状态构图自适应（底边锚定，不跳位）
-function resizeWindowFor(state) {
-  if (!win || win.isDestroyed()) return;
-  const { w: fw, h: fh } = stateFrameSize(state);
-  const scale = Math.min(330 / fw, 300 / fh);
-  const W = Math.max(240, Math.round(fw * scale) + 28);
-  const H = Math.max(220, Math.round(fh * scale) + 58);
-  const [ow, oh] = win.getSize();
-  if (Math.abs(ow - W) < 4 && Math.abs(oh - H) < 4) return;
-  const [cx, cy] = win.getPosition();
-  const wa = screen.getPrimaryDisplay().workArea;
-  let nx = cx + ow - W;                       // 保持右下角锚定
-  let ny = cy + oh - H;
-  nx = Math.min(Math.max(nx, wa.x), wa.x + wa.width - W);
-  ny = Math.min(Math.max(ny, wa.y), wa.y + wa.height - H);
-  win.setPosition(nx, ny);
-  win.setSize(W, H);
-}
-
 function pushState(state, m) {
   if (state === currentState && !m) return;
   const prev = currentState;
   currentState = state;
-  resizeWindowFor(state);
   if (win && !win.isDestroyed()) {
     win.webContents.send("pet:state", {
       state,
