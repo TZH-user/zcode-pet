@@ -164,10 +164,53 @@ async function pollLoop() {
   if (tray) tray.setToolTip(`ZCode 桌宠 v${APP_VERSION} — ${STATE_LABEL[state]}`);
 }
 
+// 状态帧尺寸（PNG IHDR 直读），用于按构图自适应窗口
+const frameSizeCache = {};
+function stateFrameSize(state) {
+  if (frameSizeCache[state]) return frameSizeCache[state];
+  const spec = manifest.states && manifest.states[state];
+  let p = null;
+  try {
+    if (spec && spec.dir) {
+      const dir = path.join(SPR, spec.dir);
+      const f = fs.readdirSync(dir).filter((f) => /\.png$/i.test(f))
+        .sort().map((f) => path.join(dir, f))[0];
+      if (f) p = f;
+    } else if (spec && spec.frames && spec.frames[0]) {
+      p = path.join(SPR, spec.frames[0]);
+    }
+  } catch (_) { }
+  if (!p) return { w: 384, h: 384 };
+  const b = fs.readFileSync(p);
+  const r = { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+  frameSizeCache[state] = r;
+  return r;
+}
+
+// 窗口按状态构图自适应（底边锚定，不跳位）
+function resizeWindowFor(state) {
+  if (!win || win.isDestroyed()) return;
+  const { w: fw, h: fh } = stateFrameSize(state);
+  const scale = Math.min(330 / fw, 300 / fh);
+  const W = Math.max(240, Math.round(fw * scale) + 28);
+  const H = Math.max(220, Math.round(fh * scale) + 58);
+  const [ow, oh] = win.getSize();
+  if (Math.abs(ow - W) < 4 && Math.abs(oh - H) < 4) return;
+  const [cx, cy] = win.getPosition();
+  const wa = screen.getPrimaryDisplay().workArea;
+  let nx = cx + ow - W;                       // 保持右下角锚定
+  let ny = cy + oh - H;
+  nx = Math.min(Math.max(nx, wa.x), wa.x + wa.width - W);
+  ny = Math.min(Math.max(ny, wa.y), wa.y + wa.height - H);
+  win.setPosition(nx, ny);
+  win.setSize(W, H);
+}
+
 function pushState(state, m) {
   if (state === currentState && !m) return;
   const prev = currentState;
   currentState = state;
+  resizeWindowFor(state);
   if (win && !win.isDestroyed()) {
     win.webContents.send("pet:state", {
       state,

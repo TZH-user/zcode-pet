@@ -28,6 +28,13 @@ async function setState(name) {
           once: !!res.once, startedAt: performance.now() };
 }
 
+function fitCanvas() {
+  cv.width = window.innerWidth;
+  cv.height = window.innerHeight;
+}
+window.addEventListener("resize", fitCanvas);
+fitCanvas();
+
 function draw() {
   const W = cv.width, H = cv.height;
   ctx.clearRect(0, 0, W, H);
@@ -39,12 +46,12 @@ function draw() {
       idx = cur.bitmaps.length - 1;   // 一次性动画播完定格末帧
     }
     const bmp = cur.bitmaps[idx];
-    const targetH = 300;
-    const scale = targetH / bmp.height;
-    let w = bmp.width * scale, h = targetH;
+    // 等比缩放：目标高 300，且不超出画布宽度
+    const scale = Math.min(300 / bmp.height, (W - 20) / bmp.width);
+    let w = bmp.width * scale, h = bmp.height * scale;
     if (performance.now() < pokeUntil) {
       const k = 0.9;
-      w *= 1 / k; h *= k;
+      w /= k; h *= k;
     }
     const x = (W - w) / 2, y = H - h - 6;
     // 地面：椭圆软阴影（所有状态）；踱步/跑步加滚动地面短线与速度线
