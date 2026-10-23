@@ -106,8 +106,8 @@ SessionStart / UserPromptSubmit / PreToolUse / PermissionRequest
   packages/desktop/src/main/taskRealtimeBus.ts              # 桌面端任务实时总线
   packages/services/src/session/taskIndexRepo.ts            # 任务索引读写
 本机（只读采样）:
-  C:\Users\18152\.zcode\v2\tasks-index.sqlite               # tasks 148 行: unread/task_status 实测
-  C:\Users\18152\.zcode\cli\db\db.sqlite                    # session 177 / turn_usage 823 / tool_usage 9735
-  C:\Users\18152\.zcode\cli\agents\sess_*\agent_*\          # 运行时输出目录
-  C:\Users\18152\.zcode\v2\sessions\<hash>\claude-import-*.json  # 导入历史
+  C:\Users/<user>\.zcode\v2\tasks-index.sqlite               # tasks 148 行: unread/task_status 实测
+  C:\Users/<user>\.zcode\cli\db\db.sqlite                    # session 177 / turn_usage 823 / tool_usage 9735
+  C:\Users/<user>\.zcode\cli\agents\sess_*\agent_*\          # 运行时输出目录
+  C:\Users/<user>\.zcode\v2\sessions\<hash>\claude-import-*.json  # 导入历史
 ```

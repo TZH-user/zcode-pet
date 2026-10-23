@@ -13,9 +13,9 @@
       "fps": 24
     },
     "walk": {
-      "dir": "frames-walk",
-      "fps": 20,
-      "note": "fl2va 大步幅往返+镜像翻倍"
+      "dir": "frames-walk2",
+      "fps": 24,
+      "note": "v5 节奏修复：修剪70%死帧+换向处5帧停留+140帧硬拼接处平移对齐(dx=-25)。280@20=14s → 168@24=7s，单帧最大位移25.15px→2.93px。素材源 frames-walk 保留可回滚"
     },
     "waiting": {
       "dir": "frames-waiting",

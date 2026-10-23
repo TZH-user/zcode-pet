@@ -15,22 +15,46 @@ html, body {
   justify-content: flex-end;
 }
 #sprite {
-  -webkit-app-region: no-drag;   /* 立绘区域留给点击互动 */
+  -webkit-app-region: no-drag;   /* 立绘区域留给点击互动 + 右键菜单 */
   cursor: pointer;
 }
+
+/* 状态文字：去掉原来的 rgba(28,30,40,0.72) 深色药丸底 —— 那块半透明底色
+   就是用户一直抱怨的"背景色没去掉"。改为无底 + 文字描边，任意壁纸上都可读。 */
 #label {
   margin: 2px 0 10px;
-  padding: 3px 14px;
-  border-radius: 12px;
-  background: rgba(28, 30, 40, 0.72);
-  color: #e8eaf2;
+  padding: 0 4px;
+  color: #eef1f8;
   font: 13px/1.6 "Microsoft YaHei", sans-serif;
   pointer-events: none;
   white-space: nowrap;
+  text-shadow:
+     0 1px 2px rgba(0, 0, 0, 0.85),
+     0 0 5px rgba(0, 0, 0, 0.75),
+     0 0 12px rgba(0, 0, 0, 0.55);
 }
+/* 用户在右键菜单里关掉文字时彻底移除节点，避免描边残影 */
+#label.hidden { display: none; }
+
 #label.working  { color: #9fdcff; }
 #label.walk     { color: #b8e4c8; }
 #label.error    { color: #ff9d9d; }
 #label.notification { color: #ffd59d; }
 #label.sleeping { color: #9aa0ae; }
 #label.celebrate { color: #b8ff9d; }
+
+/* 调试指标面板：右键菜单开启后叠加在左上角。同样无底色，只用描边。 */
+#metrics {
+  position: fixed;
+  top: 6px;
+  left: 8px;
+  padding: 0 3px;
+  font: 11px/1.5 Consolas, "Cascadia Mono", monospace;
+  color: #9fe8c8;
+  white-space: pre;
+  pointer-events: none;
+  text-shadow:
+     0 1px 2px rgba(0, 0, 0, 0.9),
+     0 0 6px rgba(0, 0, 0, 0.8);
+}
+#metrics.hidden { display: none; }

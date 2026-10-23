@@ -101,4 +101,4 @@ class StateSource {
   }
 }
 
-module.exports = { StateSource, STATE_LABEL, ACTIVE_WINDOW_S };
+module.exports = { StateSource, STATE_LABEL, ACTIVE_WINDOW_S, zcodeRunning };
